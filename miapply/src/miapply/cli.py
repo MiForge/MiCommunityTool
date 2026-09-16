@@ -15,30 +15,58 @@ def retry(fn):
         except Exception:
             pass
 
+def get_state(session, headers):
+    while True:
+        try:
+            start = time.monotonic()
+            result = state(session.get(STATE_URL, headers=headers, timeout=15))
+            return result, time.monotonic() - start
+        except Exception:
+            pass
+
+def calc_delay(ping):
+    ms = round(ping * 1000 + 100)
+    return max(200, min(ms, 3000)) / 1000.0
+
 get_headers()
 
 while True:
-    try:
-        ms = int(input("\nEnter delay in ms before 00:00 (GMT+8)\n(e.g. 500 = 0.5s, 1000 = 1s, 3000 = 3s): "))
+    choice = input("\nUse delay calculator? [y/N]: ").strip().lower()
+    if choice in ("", "n", "no"):
+        auto_delay = False
         break
-    except ValueError:
-        pass
-delay = ms / 1000.0
-print(f"\n[Delay]  {delay} s\n")
+    if choice in ("y", "yes"):
+        auto_delay = True
+        break
+
+if not auto_delay:
+    while True:
+        try:
+            ms = int(input("\nEnter delay in ms before 00:00 (GMT+8)\n(e.g. 500 = 0.5s, 1000 = 1s, 3000 = 3s): "))
+            break
+        except ValueError:
+            pass
+    delay = ms / 1000.0
+    print(f"\n[Delay]  {delay} s\n")
 
 while True:
 
     session = requests.Session()
     headers = retry(lambda: get_headers(silent=True))
 
-    status = retry(lambda: state(session.get(STATE_URL, headers=headers, timeout=15)))
+    status, ping = get_state(session, headers)
     print(status.get('message'))
     if status.get('code') == 1:
         exit()
 
+    if auto_delay:
+        delay = calc_delay(ping)
+        print(f"\n[Ping]  {ping * 1000:.0f} ms")
+        print(f"[Calculated delay]  {delay * 1000:.0f} ms\n")
+
     ntp_resp = retry(lambda: ntplib.NTPClient().request("ntp1.aliyun.com", version=3))
     beijing_tz = pytz.timezone("Asia/Shanghai")
-    beijing_time = datetime.fromtimestamp(ntp_resp.tx_time, timezone.utc).astimezone(beijing_tz)
+    beijing_time = datetime.fromtimestamp(time.time() + ntp_resp.offset, timezone.utc).astimezone(beijing_tz)
     mono_ref = time.monotonic()
 
     target = (beijing_time + timedelta(days=1)).replace(
