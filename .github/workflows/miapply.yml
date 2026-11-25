@@ -27,6 +27,19 @@ jobs:
       - name: Install build tools
         run: python -m pip install --upgrade build twine
 
+      - name: Get version
+        id: get_version
+        run: |
+          VERSION=$(grep -oP 'version = "\K[^"]+' pyproject.toml)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION is: $VERSION"
+
+      - name: Extract release notes
+        run: |
+          VERSION=$(grep -oP 'version = "\K[^"]+' pyproject.toml)
+          awk -v v="$VERSION" '$0 ~ "^### Version " v ":" {found=1; next} found && /^### Version / {exit} found {print}' CHANGELOG.md > release_notes.md
+          cat release_notes.md
+
       - name: Build package
         run: python -m build
 
@@ -35,3 +48,19 @@ jobs:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: twine upload --skip-existing dist/*
+
+      - name: Create Git Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "miapply/v${{ steps.get_version.outputs.version }}" -m "miapply v${{ steps.get_version.outputs.version }}"
+          git push origin "miapply/v${{ steps.get_version.outputs.version }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: miapply/v${{ steps.get_version.outputs.version }}
+          name: miapply v${{ steps.get_version.outputs.version }}
+          draft: false
+          prerelease: false
+          body_path: miapply/release_notes.md

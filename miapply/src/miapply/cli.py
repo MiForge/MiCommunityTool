@@ -2,11 +2,36 @@
 
 print("\nHow It Works: https://viewmd.github.io/MiForge/MiCommunityTool/refs/heads/main/miapply/README\n")
 
+import os
+import shutil
+import subprocess
 import time, threading, ntplib, pytz, requests
 
 from datetime import datetime, timedelta, timezone
 
 from micommunity import get_headers, STATE_URL, state, APPLY_URL, apply
+
+
+def acquire_termux_wakelock():
+    is_termux = (
+        "com.termux" in os.environ.get("PREFIX", "") or
+        os.environ.get("TERMUX_VERSION") is not None
+    )
+    if not is_termux:
+        return
+
+    if shutil.which("termux-wake-lock"):
+        try:
+            subprocess.run(
+                ["termux-wake-lock"],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            print("[✓] Termux wakelock acquired.")
+        except Exception:
+            pass
+
 
 def retry(fn):
     while True:
@@ -15,6 +40,8 @@ def retry(fn):
         except Exception:
             pass
 
+
+acquire_termux_wakelock()
 get_headers()
 
 while True:

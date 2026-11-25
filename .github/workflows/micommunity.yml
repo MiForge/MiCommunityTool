@@ -53,14 +53,14 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "v${{ steps.get_version.outputs.version }}" -m "Release v${{ steps.get_version.outputs.version }}"
-          git push origin "v${{ steps.get_version.outputs.version }}"
+          git tag -a "micommunity/v${{ steps.get_version.outputs.version }}" -m "micommunity v${{ steps.get_version.outputs.version }}"
+          git push origin "micommunity/v${{ steps.get_version.outputs.version }}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.get_version.outputs.version }}
-          name: Release v${{ steps.get_version.outputs.version }}
+          tag_name: micommunity/v${{ steps.get_version.outputs.version }}
+          name: micommunity v${{ steps.get_version.outputs.version }}
           draft: false
           prerelease: false
           body_path: micommunity/release_notes.md
